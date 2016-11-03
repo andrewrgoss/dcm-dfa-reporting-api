@@ -15,15 +15,15 @@ import psycopg2
 
 # declare command-line flags
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('profile_id', type=int, help='The ID of the DCM profile to use')
-argparser.add_argument('report_id', type=int, help='The ID of the DCM report to run')
-argparser.add_argument('username', type=str, help='The PostgreSQL username')
-argparser.add_argument('password', type=str, help='The PostgreSQL password for the username')
-argparser.add_argument('host', type=str, help='The PostgreSQL server')
-argparser.add_argument('database', type=str, help='The name of the PostgreSQL DB')
-argparser.add_argument('port', type=int, help='The PostgreSQL server port')
+argparser.add_argument('profile_id', type=int, help='ID of DCM profile')
+argparser.add_argument('report_id', type=int, help='ID of DCM report to run')
+argparser.add_argument('username', type=str, help='PostgreSQL username')
+argparser.add_argument('password', type=str, help='PostgreSQL password for username')
+argparser.add_argument('host', type=str, help='PostgreSQL server')
+argparser.add_argument('database', type=str, help='PostgreSQL DB')
+argparser.add_argument('port', type=int, help='PostgreSQL server port')
 argparser.add_argument('insert_table', type=str, help='PostgreSQL table where data will be inserted')
-argparser.add_argument('col_num', type=int, help='Number of columns in the insert table')
+argparser.add_argument('col_num', type=int, help='Number of columns in insert table')
 
 # perform error logging output
 def do_error_logging(message):
@@ -62,7 +62,7 @@ def load_data(csv_data, conn, table, col):
                 pass
             else:
                 insert_query = "insert into " + table + " VALUES ("+ value_string(col) + ")"
-                insert_data = (insert_date, str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), str(row[6]), str(row[7]), str(row[8]), str(row[9]), str(row[10]), str(row[11]), str(row[12]), str(row[13]), str(row[14]))
+                insert_data = (insert_date, str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), str(row[6]), str(row[7]), str(row[8]), str(row[9]), str(row[10]), str(row[11]), str(row[12]), str(row[13]), str(row[14])) # adjust per number of columns needed
                 print insert_data
                 try:
                     cur.execute(insert_query, insert_data)
@@ -70,7 +70,7 @@ def load_data(csv_data, conn, table, col):
                 except psycopg2.Error, e:
                     print 'line skipped: ' + str(e)
                     conn.rollback()
-                    with open('./badLines_' + str(date.today())+ '.csv', 'a') as csvout:
+                    with open('./badLines_' + str(date.today())+ '.csv', 'ab') as csvout:
                         outfile = writer(csvout, delimiter=',')
                         outfile.writerow(insert_data)
 
