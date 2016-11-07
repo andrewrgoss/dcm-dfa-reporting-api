@@ -4,36 +4,26 @@ __author__ = 'agoss'
 import argparse
 from csv import reader, writer
 from datetime import date, timedelta, datetime
-import logging
-from os import path
+import os
 import sys
 from time import sleep
 
 import dfareporting_utils
+import gen_utils
 from oauth2client import client
 import psycopg2
+import yaml
+
+class struct:
+    def __init__(self, **entries): 
+        self.__dict__.update(entries)
 
 # declare command-line flags
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('profile_id', type=int, help='ID of DCM profile')
 argparser.add_argument('report_id', type=int, help='ID of DCM report to run')
-argparser.add_argument('username', type=str, help='PostgreSQL username')
-argparser.add_argument('password', type=str, help='PostgreSQL password for username')
-argparser.add_argument('host', type=str, help='PostgreSQL server')
-argparser.add_argument('database', type=str, help='PostgreSQL DB')
-argparser.add_argument('port', type=int, help='PostgreSQL server port')
 argparser.add_argument('insert_table', type=str, help='PostgreSQL table where data will be inserted')
 argparser.add_argument('col_num', type=int, help='Number of columns in insert table')
-
-# perform error logging output
-def do_error_logging(message):
-    ERRORLOG = './' + str(datetime.today().strftime('%Y%m%d_%H%M%S_')) + str(path.basename(__file__)) + '_errorlog.txt'
-    if path.exists(ERRORLOG):
-        pass # skip creating new error log if it already exists
-    else:
-        logging.basicConfig(filename=ERRORLOG, level=logging.DEBUG, format='%(asctime)s [%(filename)s:%(lineno)s - %(funcName)2s()] %(message)s', datefmt='%Y%m%d %I:%M:%S %p')
-    logging.exception(message)
-    return
 
 def value_string(insert_number):
     val_str = '%s'
@@ -77,11 +67,14 @@ def load_data(csv_data, conn, table, col):
     cur.close()
 
 def main(argv):
-  # retrieve command line arguments
-  flags = dfareporting_utils.get_arguments(argv, __doc__, parents=[argparser])
+  flags = dfareporting_utils.get_arguments(argv, __doc__, parents=[argparser]) # retrieve command line arguments
+  global cfg
+  with open("config.yml", 'r') as ymlfile:
+    cfg = yaml.safe_load(ymlfile) # find and read config file
+  cfg = struct(**cfg)
 
   try:
-    conn = psycopg2.connect(database=flags.database, user=flags.username, password=flags.password, host=flags.host, port=flags.port)
+    conn = psycopg2.connect(database=cfg.postgres['database'], user=cfg.postgres['username'], password=cfg.postgres['password'], host=cfg.postgres['host'], port=cfg.postgres['port'])
   except:
     raise
   else:
@@ -130,5 +123,5 @@ if __name__ == '__main__':
   try:
     main(sys.argv)
   except:
-    do_error_logging('main() handler exception:')
+    gen_utils.error_logging('main() handler exception:', str(os.path.basename(__file__)))
     raise
