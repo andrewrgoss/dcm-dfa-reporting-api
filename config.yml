@@ -1,10 +1,13 @@
 # config file for dfareporting programs.
 
+dcm:
+  profile_id: #######
+
 postgres:
   host: server_name
   port: 5432
   database: database_name
   username: user_name
   password: user_password
-  insert_table: schema.table_name
-  col_num: 00 # select count(*) from information_schema.columns where table_name='schema.table_name' and table_schema = 'schema';
+  insert_table: table_name
+  table_schema: schema_name
