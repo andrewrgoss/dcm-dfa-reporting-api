@@ -20,10 +20,7 @@ class struct:
 
 # declare command-line flags
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('profile_id', type=int, help='ID of DCM profile')
 argparser.add_argument('report_id', type=int, help='ID of DCM report to run')
-argparser.add_argument('insert_table', type=str, help='PostgreSQL table where data will be inserted')
-argparser.add_argument('col_num', type=int, help='Number of columns in insert table')
 
 def value_string(insert_number):
     val_str = '%s'
@@ -32,10 +29,15 @@ def value_string(insert_number):
         insert_number -= 1
     return val_str
 
-def load_data(csv_data, conn, table, col):
+def load_data(csv_data, conn, schema, table):
     cur = conn.cursor()
-    csv_data = list(csv_data)
-    insert_date = str(datetime.now().date())
+    cur.execute('select column_name from information_schema.columns where table_schema = \'' + schema + '\' and table_name = \'' + table + '\' and column_name != \'id\';')
+	table_cols = cur.fetchall()
+    table_cols_list = list()
+    for col in table_cols:
+        table_cols_list.append(col[0])
+    table_cols = table_cols_list
+	csv_data = list(csv_data)
     trip = 0
 
     for row in csv_data:
@@ -51,7 +53,8 @@ def load_data(csv_data, conn, table, col):
             if row[0] == 'Grand Total:': # final report row, do not insert
                 pass
             else:
-                insert_query = "insert into " + table + " VALUES ("+ value_string(col) + ")"
+                insert_dttm = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+				insert_query = "insert into " + table + " VALUES ("+ value_string(len(table_cols)) + ")"
 				activity = '(not set)' # default value
                 activity_headers = csv_data[9][11:] # only store floodlight headers (adjust array references)
                 floodlights = {} # initialize dict
@@ -72,7 +75,12 @@ def load_data(csv_data, conn, table, col):
                         no_tag = False
 				
 				if no_tag:
-					insert_data = (insert_date, str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), str(row[6]), str(row[7]), str(row[8]), str(row[9]), str(row[10]), str(row[11]), str(row[12]), str(row[13]), str(row[14])) # adjust per number of columns needed
+					insert_data = '(insert_dttm, '
+					i = 1
+					while i < len(table_cols):
+						insert_data = insert_data + 'row['+str(i)+'], '
+						i += 1 
+					insert_data = eval(insert_data[1:-1])
 					print insert_data
 					try:
 						cur.execute(insert_query, insert_data)
@@ -82,13 +90,16 @@ def load_data(csv_data, conn, table, col):
 						conn.rollback()
 						with open('./badLines_' + str(date.today())+ '.csv', 'ab') as csvout:
 							outfile = writer(csvout, delimiter=',')
+							insert_data = list(insert_data)
+							insert_data[0] = str(insert_data[0]) + ' --' + str(e)
+							insert_data = tuple(insert_data)
 							outfile.writerow(insert_data)
 				else:
-                    floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, insert_date, row)
+                    floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, insert_dttm, row, table_cols)
 					
     cur.close()
 
-def floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, insert_date, row):
+def floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, insert_dttm, row, table_cols):
     for group in grouping_list:
         ftag1 = 0 # default value
         ftag2 = 0 # default value
@@ -114,7 +125,13 @@ def floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, inse
                 elif counter == 3:
                     a = str(group).split(':') # DCM naming convention
                     activity = str(a[1]).lstrip()
-                    insert_data = (insert_date, str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), str(row[6]), str(row[7]), str(row[8]), str(row[9]), str(row[10]), activity, 0, ftag1, ftag2, ftag3)
+					insert_data = '(insert_dttm, '
+					i = 1
+					while i < len(table_cols)-5:
+						insert_data = insert_data + 'row['+str(i)+'], '
+						i += 1
+					insert_data = insert_data + 'activity, 0, ftag1, ftag2, ftag3'
+					insert_data = eval(insert_data[1:-1])
                     print insert_data
                     try:
                         cur.execute(insert_query, insert_data)
@@ -123,8 +140,11 @@ def floodlight_tagging(grouping_list, floodlights, cur, conn, insert_query, inse
                         print 'line skipped: ' + str(e)
                         conn.rollback()
                         with open('./badLines_' + str(date.today()) + '.csv', 'a') as csvout:
-                            outfile = writer(csvout, delimiter=',')
-                            outfile.writerow(insert_data)
+							outfile = writer(csvout, delimiter=',')
+							insert_data = list(insert_data)
+							insert_data[0] = str(insert_data[0]) + ' --' + str(e)
+							insert_data = tuple(insert_data)
+							outfile.writerow(insert_data)
                     break
 	
 def main(argv):
@@ -144,7 +164,7 @@ def main(argv):
   # authenticate and construct service
   service = dfareporting_utils.setup(flags)
 
-  profile_id = flags.profile_id
+  profile_id = cfg.dcm['profile_id']
   report_id = flags.report_id
 
   try:
@@ -171,7 +191,7 @@ def main(argv):
     request = service.files().get_media(reportId=report_id, fileId=file_id) # construct request to download file
     report_file = request.execute()
     csv_data = reader(report_file.splitlines(), delimiter=',')
-    load_data(csv_data, conn, flags.insert_table, flags.col_num)
+    load_data(csv_data, conn, cfg.postgres['table_schema'], cfg.postgres['insert_table'])
 
   except client.AccessTokenRefreshError:
     print ('The credentials have been revoked or expired, please re-run the application to re-authorize')
