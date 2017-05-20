@@ -26,7 +26,7 @@ from oauth2client import file as oauthFile
 from oauth2client import tools
 
 API_NAME = 'dfareporting'
-API_VERSION = 'v2.6'
+API_VERSION = 'v2.7'
 API_SCOPES = ['https://www.googleapis.com/auth/dfareporting',
               'https://www.googleapis.com/auth/dfatrafficking',
               'https://www.googleapis.com/auth/ddmconversions']
@@ -71,8 +71,7 @@ def setup(flags):
   # Name of a file containing the OAuth 2.0 information for this
   # application, including client_id and client_secret, which are found
   # on the Credentials tab on the Google Developers Console.
-  client_secrets = os.path.join(os.path.dirname(__file__),
-                                'client_secrets.json')
+  client_secrets = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
 
   # Set up a Flow object to be used if we need to authenticate.
   flow = client.flow_from_clientsecrets(
