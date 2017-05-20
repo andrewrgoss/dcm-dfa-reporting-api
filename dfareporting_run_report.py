@@ -62,7 +62,7 @@ def load_data(csv_data, conn, schema, table):
 					i += 1 
 				insert_data = eval(insert_data[1:-1])
 			
-                insert_query = "insert into " + table + " VALUES ("+ value_string(col) + ")"
+                insert_query = "insert into " + table + " VALUES ("+ value_string(len(table_cols)) + ")"
                 print insert_data
                 try:
                     cur.execute(insert_query, insert_data)
